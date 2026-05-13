@@ -294,18 +294,9 @@
 
         <aside class="setup-card">
           <h2>Create your life</h2>
-          <p class="hint">Choose a name and pronouns, then either pick a background or let the simulator assign one. Hidden modifiers affect events without guaranteeing the ending.</p>
           <div class="field">
             <label for="playerName">Name</label>
             <input id="playerName" maxlength="24" placeholder="Jordan, Maya, Alex...">
-          </div>
-          <div class="field">
-            <label for="pronouns">Pronouns</label>
-            <select id="pronouns">
-              <option value="they/them">they/them</option>
-              <option value="she/her">she/her</option>
-              <option value="he/him">he/him</option>
-            </select>
           </div>
           <div class="field">
             <label for="backgroundSelect">Starting background</label>
@@ -419,7 +410,6 @@
     };
 
     const raceEthnicity = ['Black', 'Latino/a/e', 'White', 'Asian American', 'Native American', 'Multiracial'];
-    const genders = ['girl', 'boy', 'nonbinary teen'];
     const neighborhoods = ['under-resourced urban block', 'rural town with few services', 'working-class suburb', 'stable middle-class suburb', 'wealthy zip code'];
     const schools = ['underfunded', 'crowded but caring', 'average', 'well-funded', 'elite private'];
     const avatars = ['🧑🏽', '👩🏾', '👨🏻', '🧑🏿', '👩🏻', '👨🏽', '🧑🏼', '👩🏽‍🦱', '👨🏿‍🦱'];
@@ -549,9 +539,6 @@
 
       return {
         name,
-        pronouns: $('pronouns').value,
-        race: pick(raceEthnicity),
-        gender: pick(genders),
         neighborhood: neighborhoods[hoodIndex],
         school: schools[schoolIndex],
         avatar: pick(avatars),
@@ -602,8 +589,6 @@
       $('avatar').textContent = c.avatar;
       $('displayName').textContent = c.name;
       $('traitGrid').innerHTML = [
-        ['Background', c.background], ['Race/ethnicity', c.race], ['Gender', c.gender],
-        ['Neighborhood', c.neighborhood], ['School', c.school], ['Pronouns', c.pronouns]
       ].map(([k, v]) => `<div class="trait"><b>${k}</b><span>${v}</span></div>`).join('');
       renderMeters();
     }

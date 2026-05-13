@@ -294,7 +294,6 @@
 
         <aside class="setup-card">
           <h2>Create your life</h2>
-          <p class="hint">Choose a name, then either pick a background or let the simulator assign one. Hidden modifiers affect events without guaranteeing the ending.</p>
           <div class="field">
             <label for="playerName">Name</label>
             <input id="playerName" maxlength="24" placeholder="Jordan, Maya, Alex...">
@@ -540,7 +539,6 @@
 
       return {
         name,
-        race: pick(raceEthnicity),
         neighborhood: neighborhoods[hoodIndex],
         school: schools[schoolIndex],
         avatar: pick(avatars),
@@ -591,8 +589,6 @@
       $('avatar').textContent = c.avatar;
       $('displayName').textContent = c.name;
       $('traitGrid').innerHTML = [
-        ['Background', c.background], ['Race/ethnicity', c.race],
-        ['Neighborhood', c.neighborhood], ['School', c.school]
       ].map(([k, v]) => `<div class="trait"><b>${k}</b><span>${v}</span></div>`).join('');
       renderMeters();
     }

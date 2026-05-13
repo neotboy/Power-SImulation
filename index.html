@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stratified: The American Dream Simulator</title>
+  <style>
+    :root {
+      --bg: #10122a;
+      --bg2: #15183a;
+      --card: rgba(255, 255, 255, 0.94);
+      --ink: #172033;
+      --muted: #64708a;
+      --pink: #ff4fa3;
+      --orange: #ffb000;
+      --blue: #33a7ff;
+      --green: #20d489;
+      --purple: #8d5bff;
+      --red: #ff4868;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+      --focus: 0 0 0 4px rgba(51, 167, 255, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: white;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(255, 79, 163, 0.35), transparent 25%),
+        radial-gradient(circle at 90% 0%, rgba(51, 167, 255, 0.4), transparent 24%),
+        radial-gradient(circle at 80% 80%, rgba(32, 212, 137, 0.28), transparent 25%),
+        linear-gradient(135deg, var(--bg), var(--bg2));
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 90%);
+    }
+
+    button, input, select { font: inherit; }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 0.85rem 1.15rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+    }
+
+    button:hover { transform: translateY(-2px) scale(1.01); filter: brightness(1.03); }
+    button:active { transform: translateY(1px) scale(0.99); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: none; box-shadow: var(--focus); }
+    button:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
+
+    .app { width: min(1180px, calc(100vw - 28px)); margin: 0 auto; padding: 22px 0 36px; }
+
+    .screen { display: none; animation: floatIn 0.55s ease both; }
+    .screen.active { display: block; }
+
+    .hero {
+      min-height: calc(100vh - 58px);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .glass {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(15px);
+    }
+
+    .hero-copy { padding: clamp(24px, 5vw, 54px); position: relative; overflow: hidden; }
+    .hero-copy::after {
+      content: "SYSTEM PATCH NOTES: difficulty varies by spawn point";
+      position: absolute;
+      right: -78px;
+      top: 34px;
+      transform: rotate(22deg);
+      background: var(--orange);
+      color: #241300;
+      font-weight: 950;
+      padding: 8px 80px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+    }
+
+    .eyebrow { color: #b9c2ff; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
+    h1 { margin: 10px 0 14px; font-size: clamp(3rem, 8vw, 6.8rem); line-height: 0.88; letter-spacing: -0.08em; }
+    h1 span { display: block; color: var(--orange); text-shadow: 4px 4px 0 var(--pink); }
+    .subtitle { color: #e9edff; font-size: clamp(1.08rem, 2.1vw, 1.35rem); line-height: 1.55; max-width: 68ch; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+
+    .primary { background: linear-gradient(135deg, var(--pink), var(--purple)); color: white; box-shadow: 0 12px 28px rgba(255, 79, 163, 0.32); }
+    .secondary { background: white; color: #222a44; }
+    .tiny { font-size: 0.86rem; padding: 0.6rem 0.85rem; }
+    .danger { background: linear-gradient(135deg, var(--red), #ff7a59); color: white; }
+    .good { background: linear-gradient(135deg, var(--green), #55e7ff); color: #072417; }
+
+    .setup-card { padding: 22px; color: var(--ink); background: var(--card); }
+    .setup-card h2, .panel h2, .panel h3 { margin-top: 0; }
+    .field { display: grid; gap: 7px; margin: 14px 0; }
+    label { font-weight: 850; color: #26304c; }
+    input, select {
+      width: 100%;
+      border: 2px solid #e3e7f3;
+      border-radius: 16px;
+      padding: 0.82rem 0.9rem;
+      background: white;
+      color: #172033;
+    }
+    .hint { color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill { border-radius: 999px; padding: 6px 10px; background: #eef2ff; color: #33416a; font-size: 0.82rem; font-weight: 800; }
+
+    .game-layout { display: grid; grid-template-columns: 310px 1fr; gap: 18px; align-items: start; }
+    header.topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .logo {
+      width: 52px; height: 52px; border-radius: 17px;
+      display: grid; place-items: center; font-size: 1.7rem;
+      background: linear-gradient(135deg, var(--orange), var(--pink));
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+    .brand h2 { margin: 0; line-height: 1; letter-spacing: -0.04em; }
+    .brand small { color: #cdd5ff; font-weight: 750; }
+
+    .panel { background: var(--card); color: var(--ink); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+    .identity { display: grid; gap: 10px; }
+    .avatar {
+      width: 96px; height: 96px; border-radius: 30px;
+      display: grid; place-items: center;
+      font-size: 3rem; margin: 0 auto 4px;
+      background: linear-gradient(135deg, #fff1a8, #ff8bd1 48%, #8edcff);
+      border: 4px solid white;
+      box-shadow: 0 12px 26px rgba(32, 42, 76, 0.2);
+      animation: bob 3s ease-in-out infinite;
+    }
+    .name { text-align: center; font-size: 1.35rem; font-weight: 950; }
+    .trait-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .trait { background: #f4f6fc; border-radius: 15px; padding: 9px 10px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .trait b { font-size: 0.83rem; color: #52607e; }
+    .trait span { font-weight: 900; text-align: right; }
+
+    .meters { display: grid; gap: 11px; margin-top: 16px; }
+    .meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-weight: 850; }
+    .meter-head small { color: #66718e; font-weight: 900; }
+    .bar { height: 14px; border-radius: 999px; background: #e8ecf6; overflow: hidden; position: relative; }
+    .fill { height: 100%; border-radius: inherit; transition: width 0.65s cubic-bezier(.2,.9,.2,1); background: linear-gradient(90deg, var(--blue), var(--green)); }
+    .fill.bad { background: linear-gradient(90deg, var(--orange), var(--red)); }
+
+    .stage-card { min-height: 620px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .stage-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .stage-badge { background: #1e2751; color: white; border-radius: 999px; padding: 7px 12px; font-weight: 950; }
+    .turns { color: #5e6a86; font-weight: 900; }
+
+    .event-card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(145deg, #ffffff, #f5f7ff);
+      border: 3px solid #edf0fb;
+      border-radius: 28px;
+      padding: clamp(18px, 3vw, 28px);
+      box-shadow: inset 0 -20px 60px rgba(141, 91, 255, 0.08);
+      animation: cardPop 0.45s ease both;
+    }
+    .event-card::before {
+      content: attr(data-type);
+      position: absolute;
+      right: -18px;
+      top: 18px;
+      transform: rotate(10deg);
+      background: var(--pink);
+      color: white;
+      border-radius: 12px;
+      padding: 8px 16px;
+      font-weight: 950;
+      letter-spacing: 0.06em;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+    .event-emoji { font-size: clamp(3rem, 8vw, 5rem); filter: drop-shadow(0 10px 0 rgba(0,0,0,0.08)); }
+    .event-card h2 { font-size: clamp(1.55rem, 4vw, 2.4rem); margin: 8px 0 10px; letter-spacing: -0.045em; }
+    .event-card p { color: #41506d; line-height: 1.55; font-size: 1.04rem; max-width: 74ch; }
+    .system-note { background: #101835; color: #dce4ff; border-radius: 18px; padding: 12px 14px; font-weight: 750; line-height: 1.45; margin-top: 12px; }
+    .system-note b { color: var(--orange); }
+
+    .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .choice {
+      border-radius: 22px;
+      background: #f1f4fb;
+      color: #172033;
+      text-align: left;
+      padding: 15px;
+      border: 2px solid transparent;
+      min-height: 112px;
+    }
+    .choice:hover { border-color: #cbd6ff; box-shadow: 0 12px 24px rgba(33, 45, 84, 0.12); }
+    .choice strong { display: block; font-size: 1.03rem; margin-bottom: 5px; }
+    .choice span { color: #62708b; font-size: 0.91rem; line-height: 1.4; }
+    .choice small { display: block; color: #8d5bff; font-weight: 950; margin-top: 8px; }
+
+    .dice-zone { margin-top: auto; display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; padding-top: 18px; }
+    .die {
+      width: 102px; height: 102px; border-radius: 26px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, #fff, #e9eeff);
+      color: #111936;
+      font-size: 3.3rem;
+      font-weight: 950;
+      box-shadow: 0 14px 0 #c6cdea, 0 24px 34px rgba(0,0,0,0.22);
+      transform: rotate(-4deg);
+    }
+    .die.rolling { animation: roll 0.75s ease; }
+    .log { max-height: 160px; overflow: auto; background: #111936; border-radius: 18px; padding: 12px; color: #d9e0ff; font-size: 0.9rem; line-height: 1.45; }
+    .log div { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .log div:last-child { border-bottom: 0; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(140%);
+      background: #101835; color: white; border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px; padding: 12px 18px; box-shadow: var(--shadow);
+      font-weight: 850; z-index: 20; transition: transform 0.28s ease;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .flash { animation: flash 0.55s ease; }
+    .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 30; }
+    .confetti i { position: absolute; width: 10px; height: 18px; border-radius: 3px; animation: fall 1.7s ease-out forwards; }
+
+    .ending-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .ending-title { font-size: clamp(2.4rem, 7vw, 5rem); line-height: 0.92; letter-spacing: -0.07em; margin: 0 0 14px; }
+    .score-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+    .score-box { background: #f4f6fc; border-radius: 18px; padding: 12px; text-align: center; }
+    .score-box b { display: block; font-size: 1.35rem; }
+    .score-box span { color: #66718e; font-size: 0.8rem; font-weight: 850; }
+    .debrief li { margin: 10px 0; color: #3d4b67; line-height: 1.45; }
+    .leaderboard { display: grid; gap: 9px; }
+    .rank { background: #f3f6ff; border-radius: 15px; padding: 10px; display: flex; justify-content: space-between; gap: 10px; }
+    .rank b { color: #222b47; }
+    .rank span { color: #63708b; font-weight: 850; }
+
+    @keyframes floatIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes cardPop { 0% { opacity: 0; transform: translateY(18px) rotate(-1deg) scale(0.98); } 100% { opacity: 1; transform: none; } }
+    @keyframes bob { 50% { transform: translateY(-7px) rotate(2deg); } }
+    @keyframes roll { 20% { transform: rotate(18deg) scale(1.08); } 45% { transform: rotate(-20deg) scale(0.94); } 70% { transform: rotate(12deg) scale(1.05); } }
+    @keyframes flash { 50% { filter: brightness(1.45) saturate(1.4); } }
+    @keyframes fall { to { transform: translateY(110vh) rotate(580deg); opacity: 0; } }
+
+    @media (max-width: 880px) {
+      .hero, .game-layout, .ending-grid { grid-template-columns: 1fr; }
+      .hero { min-height: auto; padding-top: 16px; }
+      .hero-copy::after { display: none; }
+      .choices { grid-template-columns: 1fr; }
+      .dice-zone { grid-template-columns: 1fr; }
+      .die { width: 84px; height: 84px; font-size: 2.6rem; }
+      .score-row { grid-template-columns: repeat(2, 1fr); }
+      header.topbar { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="startScreen" class="screen active">
+      <div class="hero">
+        <div class="hero-copy glass">
+          <div class="eyebrow">A sociology survival game</div>
+          <h1>Stratified:<span>The American Dream Simulator</span></h1>
+          <p class="subtitle">Roll the dice, make choices, chase clout, dodge bills, and try to build a life in a system where your spawn point quietly changes the rules.</p>
+          <div class="hero-actions">
+            <button class="primary" id="randomStartBtn">🎲 Random Life Speedrun</button>
+            <button class="secondary" id="customizeBtn">🧬 Build a Character</button>
+          </div>
+          <div class="pill-row" aria-label="Game features">
+            <span class="pill">RNG events</span><span class="pill">Choices matter</span><span class="pill">Multiple endings</span><span class="pill">No worksheet energy</span>
+          </div>
+        </div>
+
+        <aside class="setup-card">
+          <h2>Create your life</h2>
+          <p class="hint">Choose a name, then either pick a background or let the simulator assign one. Hidden modifiers affect events without guaranteeing the ending.</p>
+          <div class="field">
+            <label for="playerName">Name</label>
+            <input id="playerName" maxlength="24" placeholder="Jordan, Maya, Alex...">
+          </div>
+          <div class="field">
+            <label for="backgroundSelect">Starting background</label>
+            <select id="backgroundSelect">
+              <option value="random">Randomized by the life lottery</option>
+              <option value="scarcity">Low wealth, underfunded neighborhood</option>
+              <option value="working">Working class, mixed support</option>
+              <option value="middle">Middle class, decent access</option>
+              <option value="affluent">Affluent, high-opportunity network</option>
+            </select>
+          </div>
+          <button class="primary" id="customStartBtn">Start This Life 🚀</button>
+        </aside>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">🏙️</div>
+          <div><h2>Stratified</h2><small>American Dream Simulator</small></div>
+        </div>
+        <button class="secondary tiny" id="restartBtn">Restart life</button>
+      </header>
+
+      <div class="game-layout">
+        <aside class="panel">
+          <div class="identity">
+            <div class="avatar" id="avatar">🧑</div>
+            <div class="name" id="displayName">Player</div>
+            <div class="trait-grid" id="traitGrid"></div>
+          </div>
+          <div class="meters" id="meters"></div>
+        </aside>
+
+        <section class="panel stage-card">
+          <div class="stage-top">
+            <span class="stage-badge" id="stageBadge">Childhood</span>
+            <span class="turns" id="turnCounter">Turn 1 / 20</span>
+          </div>
+          <article class="event-card" id="eventCard" data-type="event">
+            <div class="event-emoji" id="eventEmoji">🎒</div>
+            <h2 id="eventTitle">Welcome to your life.</h2>
+            <p id="eventText">The game is loading your first event.</p>
+            <div class="system-note" id="systemNote">Every roll includes chance plus hidden social conditions.</div>
+            <div class="choices" id="choices"></div>
+          </article>
+          <div class="dice-zone">
+            <div class="die" id="die">?</div>
+            <div class="log" id="log" aria-live="polite"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="endScreen" class="screen">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">🏁</div>
+          <div><h2>Life Complete</h2><small>Debrief unlocked</small></div>
+        </div>
+        <button class="secondary tiny" id="playAgainBtn">Play another life</button>
+      </header>
+      <div class="ending-grid">
+        <section class="panel">
+          <p class="eyebrow" style="color:#8d5bff">Ending</p>
+          <h2 class="ending-title" id="endingTitle">Working Class Hero</h2>
+          <p id="endingText" class="subtitle" style="color:#41506d"></p>
+          <div class="score-row" id="scoreRow"></div>
+          <h3>Life highlights</h3>
+          <div class="log" id="finalLog" style="max-height:260px"></div>
+        </section>
+        <aside class="panel debrief">
+          <h2>Reflection / Debrief</h2>
+          <p class="hint">Use these after students compare endings. The point is not that effort never matters; it is that effort happens inside unequal conditions.</p>
+          <ol>
+            <li>Was the game fair? What made it feel fair or unfair?</li>
+            <li>Did every character have equal opportunity, or just the same buttons?</li>
+            <li>Where did privilege compound over time?</li>
+            <li>Which institutions shaped your path: schools, police, banks, health care, work, housing, family?</li>
+            <li>When did random chance matter? When did social structure matter?</li>
+            <li>Is America a meritocracy? What evidence from your playthrough supports your answer?</li>
+          </ol>
+          <h3>Class leaderboard</h3>
+          <div class="leaderboard" id="leaderboard"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    // Stratified is intentionally self-contained: data, logic, UI, and styles live in this one file.
+    const stages = [
+      { name: 'Childhood', turns: 4 },
+      { name: 'Middle / High School', turns: 4 },
+      { name: 'Early Adulthood', turns: 4 },
+      { name: 'Career / Family Life', turns: 4 },
+      { name: 'Later Adulthood', turns: 4 }
+    ];
+
+    const statMeta = {
+      money: { label: 'Money', icon: '💵', min: -80, max: 180 },
+      happiness: { label: 'Happiness', icon: '😄', min: 0, max: 100 },
+      stress: { label: 'Stress', icon: '🔥', min: 0, max: 100, bad: true },
+      education: { label: 'Education', icon: '🎓', min: 0, max: 100 },
+      health: { label: 'Health', icon: '❤️', min: 0, max: 100 },
+      power: { label: 'Social Power', icon: '📣', min: 0, max: 100 },
+      opportunity: { label: 'Opportunity', icon: '🧭', min: 0, max: 100 }
+    };
+
+    const raceEthnicity = ['Black', 'Latino/a/e', 'White', 'Asian American', 'Native American', 'Multiracial'];
+    const neighborhoods = ['under-resourced urban block', 'rural town with few services', 'working-class suburb', 'stable middle-class suburb', 'wealthy zip code'];
+    const schools = ['underfunded', 'crowded but caring', 'average', 'well-funded', 'elite private'];
+    const avatars = ['🧑🏽', '👩🏾', '👨🏻', '🧑🏿', '👩🏻', '👨🏽', '🧑🏼', '👩🏽‍🦱', '👨🏿‍🦱'];
+
+    const backgroundTemplates = {
+      scarcity: { familyWealth: 14, schoolQuality: 22, familySupport: 42, healthAccess: 25, connections: 13, money: 2, opportunity: 22, stress: 44 },
+      working: { familyWealth: 34, schoolQuality: 44, familySupport: 58, healthAccess: 47, connections: 32, money: 10, opportunity: 42, stress: 34 },
+      middle: { familyWealth: 58, schoolQuality: 62, familySupport: 66, healthAccess: 66, connections: 55, money: 22, opportunity: 61, stress: 25 },
+      affluent: { familyWealth: 86, schoolQuality: 82, familySupport: 76, healthAccess: 86, connections: 82, money: 45, opportunity: 82, stress: 17 }
+    };
+
+    const eventPool = {
+      'Childhood': [
+        { type: 'school', emoji: '🏫', title: 'Your school loses funding', text: 'The library cuts hours and the music teacher becomes a rumor, like Bigfoot with a lesson plan.', effects: { education: -7, opportunity: -5, stress: 5 }, bias: { schoolQuality: -0.08 }, choices: [
+          { label: 'Join an after-school program', desc: 'Safe place, homework help, snacks of mysterious origin.', odds: 54, mods: { familySupport: 0.12, connections: 0.08 }, success: { education: 8, happiness: 4, power: 2 }, fail: { stress: 4, happiness: -2 }, note: 'Access depends on transportation, adult schedules, and local funding.' },
+          { label: 'Help at home instead', desc: 'Responsible move. Childhood side quest gets harder.', odds: 70, mods: { familySupport: 0.07 }, success: { familySupport: 3, money: 2, stress: 2 }, fail: { education: -3, stress: 5 }, note: 'Family obligations can be rational and still affect school outcomes.' }
+        ]},
+        { type: 'family', emoji: '💸', title: 'A family member loses their job', text: 'The budget enters survival mode. Store-brand cereal becomes a lifestyle brand.', effects: { money: -10, stress: 10, happiness: -4 }, bias: { familyWealth: -0.12 }, choices: [
+          { label: 'Keep routines stable', desc: 'Homework, sleep, repeat. Pretend the Wi-Fi bill is not a jump scare.', odds: 48, mods: { familySupport: 0.18, healthAccess: 0.04 }, success: { education: 5, stress: -4 }, fail: { stress: 6, health: -3 }, note: 'Support networks buffer shocks.' },
+          { label: 'Start hustling small gigs', desc: 'Lawn work, babysitting, selling custom stickers.', odds: 56, mods: { connections: 0.08, opportunity: 0.06 }, success: { money: 8, power: 3, stress: 3 }, fail: { education: -4, stress: 7 }, note: 'Extra work can help money while taking time from school.' }
+        ]},
+        { type: 'opportunity', emoji: '🎁', title: 'A mentor notices you', text: 'A coach/teacher says, “You have potential,” which is basically a power-up with paperwork.', effects: {}, bias: { connections: 0.05, schoolQuality: 0.06 }, choices: [
+          { label: 'Lean into the mentorship', desc: 'Ask questions, accept help, learn the secret adult emails.', odds: 60, mods: { schoolQuality: 0.13, familySupport: 0.07 }, success: { education: 8, opportunity: 8, power: 4 }, fail: { stress: 3 }, note: 'Institutions can open doors when people inside them advocate for you.' },
+          { label: 'Play it cool', desc: 'Protect your vibe. Vulnerability is cringe until it works.', odds: 50, mods: { happiness: 0.06 }, success: { happiness: 5, power: 2 }, fail: { opportunity: -2 }, note: 'Trusting institutions may feel risky based on past experiences.' }
+        ]},
+        { type: 'health', emoji: '🤒', title: 'Medical emergency', text: 'A random health problem arrives with no appointment, no chill, and possibly a bill.', effects: { health: -12, stress: 8 }, bias: { healthAccess: -0.1 }, choices: [
+          { label: 'Get care immediately', desc: 'Fast treatment, but bills may start doing parkour.', odds: 72, mods: { healthAccess: 0.22, familyWealth: 0.08 }, success: { health: 13, stress: -2, money: -6 }, fail: { health: 3, money: -16, stress: 8 }, note: 'Health access changes both medical and financial outcomes.' },
+          { label: 'Wait and hope', desc: 'Classic American health-care minigame: “Is it bad enough yet?”', odds: 38, mods: { healthAccess: 0.08 }, success: { health: 4, money: 1 }, fail: { health: -11, stress: 10 }, note: 'Delaying care can be a financial strategy with health risks.' }
+        ]}
+      ],
+      'Middle / High School': [
+        { type: 'education', emoji: '📚', title: 'College prep season', text: 'Everyone is suddenly fluent in acronyms: GPA, SAT, FAFSA, OMG.', effects: {}, bias: { schoolQuality: 0.1, connections: 0.06 }, choices: [
+          { label: 'Take the advanced track', desc: 'More challenge, better transcript, more caffeine.', odds: 52, mods: { schoolQuality: 0.18, stress: -0.08 }, success: { education: 12, opportunity: 8, stress: 5 }, fail: { stress: 9, happiness: -4 }, note: 'Advanced courses are not distributed equally across schools.' },
+          { label: 'Focus on work and stability', desc: 'Earn money now. Future-you may send a strongly worded memo.', odds: 62, mods: { familySupport: 0.06 }, success: { money: 10, stress: 2 }, fail: { education: -5, opportunity: -4, stress: 5 }, note: 'Short-term survival can conflict with long-term credentials.' }
+        ]},
+        { type: 'policing', emoji: '🚓', title: 'You get pulled over by police', text: 'A normal ride becomes a high-stakes dialogue tree. Your heart rate applies for a promotion.', effects: { stress: 7 }, bias: { familyWealth: -0.04 }, choices: [
+          { label: 'Stay silent and comply', desc: 'Lower conflict, still scary, still not equally experienced.', odds: 64, mods: { power: 0.08, money: 0.03 }, success: { stress: -1 }, fail: { money: -8, stress: 12, opportunity: -3 }, note: 'Race, class, neighborhood, and legal knowledge affect police encounters.' },
+          { label: 'Record and assert rights', desc: 'Civic knowledge plus phone battery: 12%.', odds: 48, mods: { education: 0.12, power: 0.12 }, success: { power: 8, stress: 4 }, fail: { stress: 14, money: -10, health: -3 }, note: 'Knowing rights helps, but power differences still matter.' }
+        ]},
+        { type: 'chance', emoji: '📱', title: 'Social media moment', text: 'A video of your cafeteria rant goes mini-viral. The comments are 30% support, 70% feral raccoons.', effects: { power: 3 }, bias: { connections: 0.05 }, choices: [
+          { label: 'Build a platform', desc: 'Post consistently. Become the main character responsibly-ish.', odds: 45, mods: { power: 0.12, happiness: 0.07 }, success: { power: 13, money: 7, happiness: 5 }, fail: { stress: 8, happiness: -4 }, note: 'New media can create mobility, but attention is unstable.' },
+          { label: 'Log off for peace', desc: 'Touch grass. Heal the algorithm-shaped hole in your soul.', odds: 75, mods: { health: 0.08 }, success: { stress: -9, health: 4 }, fail: { power: -2 }, note: 'Not every opportunity is worth the stress.' }
+        ]},
+        { type: 'barrier', emoji: '🏠', title: 'Housing instability', text: 'Rent jumps. Your family starts discussing moving like it is a tornado with paperwork.', effects: { stress: 12, happiness: -5 }, bias: { familyWealth: -0.14 }, choices: [
+          { label: 'Move to cheaper housing', desc: 'Lower rent, longer commute, new school vibes: loading...', odds: 58, mods: { money: 0.05 }, success: { money: 5, stress: -2, opportunity: -5 }, fail: { education: -7, stress: 7 }, note: 'Housing markets shape school access and social networks.' },
+          { label: 'Fight to stay', desc: 'Ask relatives, negotiate, stack coupons like Tetris.', odds: 42, mods: { connections: 0.16, familySupport: 0.15, familyWealth: 0.1 }, success: { opportunity: 5, education: 4, money: -4 }, fail: { money: -12, stress: 11 }, note: 'Social connections can turn crisis into survivable inconvenience.' }
+        ]}
+      ],
+      'Early Adulthood': [
+        { type: 'college', emoji: '🎓', title: 'College decision', text: 'Admissions emails arrive. So do costs. The dream has an itemized receipt.', effects: {}, bias: { education: 0.12, familyWealth: 0.06 }, choices: [
+          { label: 'Enroll full-time', desc: 'Big opportunity, big bills, tiny dorm room.', odds: 55, mods: { education: 0.2, familyWealth: 0.12, opportunity: 0.08 }, success: { education: 16, opportunity: 12, money: -12, stress: 6 }, fail: { money: -22, stress: 12, education: 4 }, note: 'College access depends on preparation, money, and guidance.' },
+          { label: 'Work first, study part-time', desc: 'Slower route, less debt, schedule powered by cold pizza.', odds: 64, mods: { familySupport: 0.08, health: 0.06 }, success: { money: 10, education: 7, stress: 4 }, fail: { education: -2, stress: 10 }, note: 'Flexible paths can reduce debt but add time and exhaustion.' }
+        ]},
+        { type: 'network', emoji: '🤝', title: 'Internship through a connection', text: 'Someone’s cousin’s neighbor’s boss says there is an opening. The hidden job market says hello.', effects: {}, bias: { connections: 0.16 }, choices: [
+          { label: 'Take the unpaid internship', desc: 'Resume boost. Wallet enters witness protection.', odds: 58, mods: { familyWealth: 0.16, connections: 0.14 }, success: { opportunity: 13, power: 8, money: -6 }, fail: { stress: 8, money: -8 }, note: 'Unpaid opportunities reward people who can afford to work for free.' },
+          { label: 'Choose paid work instead', desc: 'Cash now. Networking later, maybe.', odds: 68, mods: { education: 0.06 }, success: { money: 13, stress: 2 }, fail: { opportunity: -4, stress: 5 }, note: 'Income needs can limit career-building options.' }
+        ]},
+        { type: 'finance', emoji: '💳', title: 'Predatory loan offer', text: 'The ad says “instant approval.” The fine print says “financial boss fight.”', effects: {}, bias: { money: -0.08 }, choices: [
+          { label: 'Accept the loan', desc: 'Immediate relief with interest rates from a haunted calculator.', odds: 50, mods: { education: 0.08 }, success: { money: 12, stress: 4 }, fail: { money: -12, stress: 13 }, note: 'Financial systems can extract more from people with fewer options.' },
+          { label: 'Avoid it and cut costs', desc: 'No debt trap, but your budget is held together by vibes.', odds: 60, mods: { familySupport: 0.12, connections: 0.07 }, success: { stress: -3, money: 2 }, fail: { health: -4, happiness: -6, stress: 7 }, note: 'Avoiding bad credit can still require painful sacrifices.' }
+        ]},
+        { type: 'luck', emoji: '🎉', title: 'Scholarship surprise', text: 'An email says you won funding. You check if it is spam three times.', effects: {}, bias: { education: 0.09, schoolQuality: 0.06 }, choices: [
+          { label: 'Use it for school', desc: 'Tuition monster takes damage.', odds: 78, mods: { education: 0.08 }, success: { education: 10, money: 10, opportunity: 8, stress: -5 }, fail: { stress: 3 }, note: 'Scholarships help, but students need information and support to find them.' },
+          { label: 'Use it to stabilize life', desc: 'Rent, food, transport: the boring heroes.', odds: 72, mods: { stress: -0.08 }, success: { money: 8, health: 5, stress: -8 }, fail: { education: -2 }, note: 'Basic stability is often a prerequisite for achievement.' }
+        ]}
+      ],
+      'Career / Family Life': [
+        { type: 'work', emoji: '📉', title: 'Laid off during a recession', text: 'Your company says “family,” then deletes your badge access before lunch.', effects: { money: -15, stress: 13, happiness: -6 }, bias: { power: -0.06 }, choices: [
+          { label: 'Tap your network', desc: 'Send messages, attend events, pretend networking is not awkward.', odds: 50, mods: { connections: 0.2, power: 0.12, education: 0.08 }, success: { money: 14, opportunity: 8, stress: -4 }, fail: { stress: 10, money: -8 }, note: 'Networks often determine who hears about openings first.' },
+          { label: 'Take any available job', desc: 'Income now. Prestige later. Bills do not accept “potential.”', odds: 66, mods: { health: 0.06 }, success: { money: 8, stress: 2 }, fail: { health: -5, stress: 9 }, note: 'Labor markets shape choices; survival work is not failure.' }
+        ]},
+        { type: 'housing', emoji: '🏘️', title: 'Housing discrimination', text: 'Your application gets “lost.” Weird how the lost folder has patterns.', effects: { stress: 9 }, bias: { familyWealth: -0.05, power: -0.03 }, choices: [
+          { label: 'Challenge it', desc: 'Document, complain, risk time and retaliation.', odds: 42, mods: { education: 0.12, power: 0.16, money: 0.06 }, success: { power: 12, opportunity: 5, stress: 3 }, fail: { money: -8, stress: 12 }, note: 'Legal rights require time, knowledge, and resources to enforce.' },
+          { label: 'Find another place', desc: 'Protect your peace, maybe lose access to a better area.', odds: 58, mods: { money: 0.08, connections: 0.06 }, success: { stress: -2, money: -4 }, fail: { opportunity: -8, stress: 9 }, note: 'Discrimination can redirect families away from opportunity-rich places.' }
+        ]},
+        { type: 'business', emoji: '🚀', title: 'Business idea goes viral', text: 'Your side hustle catches fire online. Suddenly everyone is a branding expert.', effects: { power: 5 }, bias: { connections: 0.08, money: 0.04 }, choices: [
+          { label: 'Scale up aggressively', desc: 'High risk, high reward, sleep becomes DLC.', odds: 38, mods: { money: 0.12, connections: 0.1, education: 0.08 }, success: { money: 35, power: 18, opportunity: 12, stress: 10 }, fail: { money: -22, stress: 15, happiness: -6 }, note: 'Entrepreneurship rewards risk, but risk is easier with a safety net.' },
+          { label: 'Keep it sustainable', desc: 'Grow slowly. Ignore hustle bros yelling from podcasts.', odds: 65, mods: { health: 0.08, familySupport: 0.06 }, success: { money: 13, happiness: 7, power: 5 }, fail: { opportunity: -2, stress: 4 }, note: 'Stability can be a strategic choice, not a lack of ambition.' }
+        ]},
+        { type: 'family', emoji: '👶', title: 'Caregiving crunch', text: 'Kids, elders, or relatives need support right as work gets intense. Calendar says “lol.”', effects: { stress: 10 }, bias: { familySupport: -0.02 }, choices: [
+          { label: 'Pay for care', desc: 'Professional help. Bank account makes cartoon slipping noise.', odds: 62, mods: { money: 0.14, familyWealth: 0.1 }, success: { stress: -8, opportunity: 4, money: -10 }, fail: { money: -18, stress: 6 }, note: 'Care infrastructure affects labor force participation.' },
+          { label: 'Handle it personally', desc: 'Love is real. Burnout is also real.', odds: 57, mods: { familySupport: 0.15, health: 0.08 }, success: { happiness: 8, stress: 2, power: 2 }, fail: { health: -8, money: -8, stress: 12 }, note: 'Unpaid care work is essential but often invisible.' }
+        ]}
+      ],
+      'Later Adulthood': [
+        { type: 'wealth', emoji: '🏦', title: 'Inheritance season', text: 'Some people inherit assets. Some inherit bills. The family group chat gets complicated.', effects: {}, bias: { familyWealth: 0.2 }, choices: [
+          { label: 'Invest long-term', desc: 'Compound interest: boring wizard magic.', odds: 58, mods: { education: 0.1, money: 0.12, familyWealth: 0.14 }, success: { money: 25, opportunity: 8, stress: -3 }, fail: { money: -10, stress: 5 }, note: 'Intergenerational wealth can multiply advantages.' },
+          { label: 'Support family/community', desc: 'Mutual aid mode: activated.', odds: 66, mods: { familySupport: 0.12, power: 0.1 }, success: { happiness: 10, power: 12, money: -4 }, fail: { money: -12, stress: 8 }, note: 'Wealth can be individual capital or collective security.' }
+        ]},
+        { type: 'health', emoji: '🩺', title: 'Chronic health challenge', text: 'Years of stress send a bill to your body. Rude, but biologically plausible.', effects: { health: -10, stress: 5 }, bias: { healthAccess: -0.09, stress: 0.08 }, choices: [
+          { label: 'Get consistent treatment', desc: 'Appointments, meds, and the ancient art of arguing with insurance.', odds: 60, mods: { healthAccess: 0.22, money: 0.08 }, success: { health: 16, stress: -5, money: -8 }, fail: { money: -16, stress: 8 }, note: 'Health outcomes reflect both choices and systems.' },
+          { label: 'Rely on coping strategies', desc: 'Community support, rest, internet advice of varying quality.', odds: 45, mods: { familySupport: 0.13, education: 0.07 }, success: { health: 6, happiness: 5, stress: -3 }, fail: { health: -10, stress: 9 }, note: 'Informal support matters when formal systems are expensive.' }
+        ]},
+        { type: 'community', emoji: '📣', title: 'Community leadership opportunity', text: 'People ask you to lead a campaign for better schools, housing, or wages. Congrats, you are now “the email person.”', effects: {}, bias: { power: 0.12, education: 0.05 }, choices: [
+          { label: 'Organize for change', desc: 'Meetings, flyers, speeches, snacks, hope.', odds: 52, mods: { power: 0.16, connections: 0.14, education: 0.08 }, success: { power: 18, happiness: 9, opportunity: 6, stress: 5 }, fail: { stress: 12, money: -4 }, note: 'Collective power can challenge institutions.' },
+          { label: 'Mentor one person deeply', desc: 'Smaller scale, real impact, fewer microphones.', odds: 70, mods: { health: 0.06, familySupport: 0.08 }, success: { happiness: 10, power: 7, stress: -2 }, fail: { stress: 4 }, note: 'Social capital can be passed on through relationships.' }
+        ]},
+        { type: 'market', emoji: '🌪️', title: 'Economic crash', text: 'Markets panic. News anchors use charts like jump scares.', effects: { money: -12, stress: 10 }, bias: { money: -0.04 }, choices: [
+          { label: 'Ride it out', desc: 'Do not sell everything because a guy on TV blinked weird.', odds: 58, mods: { money: 0.12, education: 0.08 }, success: { money: 10, stress: -5 }, fail: { money: -14, stress: 6 }, note: 'Assets create resilience when downturns hit.' },
+          { label: 'Pivot quickly', desc: 'New job, new budget, new personality for LinkedIn.', odds: 50, mods: { opportunity: 0.14, connections: 0.12, health: 0.06 }, success: { opportunity: 10, money: 8, power: 4 }, fail: { stress: 10, health: -4 }, note: 'Adaptability matters, but resources affect who can pivot.' }
+        ]}
+      ]
+    };
+
+    let state;
+    const $ = (id) => document.getElementById(id);
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      $(id).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function makeCharacter(mode = 'random') {
+      const templateKey = mode === 'random' ? weightedPick([
+        ['scarcity', 30], ['working', 34], ['middle', 26], ['affluent', 10]
+      ]) : mode;
+      const template = backgroundTemplates[templateKey];
+      const jitter = (n) => clamp(n + rand(-7, 7), 1, 100);
+      const wealthNames = { scarcity: 'Low wealth', working: 'Working class', middle: 'Middle class', affluent: 'Affluent' };
+      const schoolIndex = template.schoolQuality < 30 ? 0 : template.schoolQuality < 50 ? 1 : template.schoolQuality < 70 ? 2 : template.schoolQuality < 85 ? 3 : 4;
+      const hoodIndex = template.familyWealth < 25 ? rand(0, 1) : template.familyWealth < 50 ? 2 : template.familyWealth < 75 ? 3 : 4;
+      const name = $('playerName').value.trim() || pick(['Jordan', 'Maya', 'Alex', 'Sam', 'Taylor', 'Riley', 'Ari', 'Jayden']);
+
+      return {
+        name,
+        race: pick(raceEthnicity),
+        neighborhood: neighborhoods[hoodIndex],
+        school: schools[schoolIndex],
+        avatar: pick(avatars),
+        background: wealthNames[templateKey],
+        familyWealth: jitter(template.familyWealth),
+        schoolQuality: jitter(template.schoolQuality),
+        familySupport: jitter(template.familySupport),
+        healthAccess: jitter(template.healthAccess),
+        connections: jitter(template.connections),
+        money: template.money + rand(-5, 5),
+        happiness: rand(48, 66),
+        stress: clamp(template.stress + rand(-6, 6), 0, 100),
+        education: clamp(template.schoolQuality + rand(-8, 8), 0, 100),
+        health: clamp(template.healthAccess + 25 + rand(-10, 10), 20, 100),
+        power: clamp(template.connections + rand(-8, 8), 0, 100),
+        opportunity: clamp(template.opportunity + rand(-7, 7), 0, 100)
+      };
+    }
+
+    function weightedPick(items) {
+      const total = items.reduce((sum, item) => sum + item[1], 0);
+      let roll = Math.random() * total;
+      for (const [value, weight] of items) {
+        roll -= weight;
+        if (roll <= 0) return value;
+      }
+      return items[0][0];
+    }
+
+    function startGame(mode) {
+      state = {
+        character: makeCharacter(mode),
+        stageIndex: 0,
+        turnInStage: 0,
+        totalTurn: 1,
+        log: [],
+        seen: new Set(),
+        currentEvent: null,
+        locked: false
+      };
+      showScreen('gameScreen');
+      renderCharacter();
+      nextEvent();
+    }
+
+    function renderCharacter() {
+      const c = state.character;
+      $('avatar').textContent = c.avatar;
+      $('displayName').textContent = c.name;
+      $('traitGrid').innerHTML = [
+        ['Background', c.background], ['Race/ethnicity', c.race],
+        ['Neighborhood', c.neighborhood], ['School', c.school]
+      ].map(([k, v]) => `<div class="trait"><b>${k}</b><span>${v}</span></div>`).join('');
+      renderMeters();
+    }
+
+    function renderMeters() {
+      const c = state.character;
+      $('meters').innerHTML = Object.entries(statMeta).map(([key, meta]) => {
+        const raw = c[key];
+        const pct = ((raw - meta.min) / (meta.max - meta.min)) * 100;
+        return `<div class="meter">
+          <div class="meter-head"><span>${meta.icon} ${meta.label}</span><small>${Math.round(raw)}</small></div>
+          <div class="bar"><div class="fill ${meta.bad ? 'bad' : ''}" style="width:${clamp(pct, 0, 100)}%"></div></div>
+        </div>`;
+      }).join('');
+    }
+
+    function nextEvent() {
+      if (state.totalTurn > 20) return endGame();
+      state.locked = false;
+      const stage = stages[state.stageIndex];
+      $('stageBadge').textContent = stage.name;
+      $('turnCounter').textContent = `Turn ${state.totalTurn} / 20`;
+      let pool = eventPool[stage.name];
+      const unseen = pool.filter(e => !state.seen.has(stage.name + e.title));
+      if (unseen.length) pool = unseen;
+      const event = biasedEventPick(pool);
+      state.seen.add(stage.name + event.title);
+      state.currentEvent = event;
+      applyEffects(event.effects, false);
+      renderEvent(event);
+      renderLog();
+    }
+
+    function biasedEventPick(pool) {
+      const c = state.character;
+      const scored = pool.map(event => {
+        let weight = 1;
+        for (const [trait, mod] of Object.entries(event.bias || {})) {
+          const value = c[trait] ?? 50;
+          weight += ((value - 50) / 50) * mod * 7;
+        }
+        return [event, Math.max(0.15, weight)];
+      });
+      return weightedPick(scored);
+    }
+
+    function renderEvent(event) {
+      $('eventCard').dataset.type = event.type;
+      $('eventEmoji').textContent = event.emoji;
+      $('eventTitle').textContent = event.title;
+      $('eventText').textContent = event.text;
+      $('systemNote').innerHTML = `<b>System whisper:</b> Your visible choice matters. Your hidden starting conditions quietly nudge the odds.`;
+      $('choices').innerHTML = event.choices.map((choice, index) => `<button class="choice" data-index="${index}">
+        <strong>${choice.label}</strong><span>${choice.desc}</span><small>Base chance: ${choice.odds}% + life modifiers</small>
+      </button>`).join('');
+      document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => choose(Number(btn.dataset.index))));
+    }
+
+    function choose(index) {
+      if (state.locked) return;
+      state.locked = true;
+      const event = state.currentEvent;
+      const choice = event.choices[index];
+      const c = state.character;
+      let odds = choice.odds;
+      for (const [trait, mod] of Object.entries(choice.mods || {})) odds += ((c[trait] ?? 50) - 50) * mod;
+      odds += (c.opportunity - 50) * 0.07 + (50 - c.stress) * 0.05 + rand(-9, 9);
+      odds = clamp(Math.round(odds), 5, 95);
+      const dieRoll = rand(1, 20);
+      const rollScore = Math.round((dieRoll / 20) * 100);
+      const success = rollScore <= odds;
+      animateDie(dieRoll);
+      setTimeout(() => {
+        const effects = success ? choice.success : choice.fail;
+        applyEffects(effects, true);
+        const msg = `${success ? '✅' : '⚠️'} ${choice.label}: rolled ${dieRoll}/20 against ${odds}% odds. ${success ? 'It worked.' : 'It got messy.'}`;
+        addLog(msg);
+        $('systemNote').innerHTML = `<b>${success ? 'Result' : 'Complication'}:</b> ${choice.note} <br><b>Roll:</b> ${dieRoll}/20 • <b>Adjusted odds:</b> ${odds}%`;
+        toast(success ? pick(['W!', 'Main character moment.', 'The dice blessed you.']) : pick(['Oof.', 'The system said “not today.”', 'Character development unlocked.']));
+        if (success && (effects.money > 20 || effects.power > 12)) confetti();
+        advanceTurnButton();
+      }, 760);
+    }
+
+    function advanceTurnButton() {
+      $('choices').innerHTML = `<button class="primary" id="continueBtn">Continue life ➜</button>`;
+      $('continueBtn').addEventListener('click', () => {
+        state.turnInStage++;
+        state.totalTurn++;
+        if (state.turnInStage >= stages[state.stageIndex].turns) {
+          state.stageIndex++;
+          state.turnInStage = 0;
+        }
+        driftStats();
+        nextEvent();
+      });
+    }
+
+    function applyEffects(effects = {}, visible = true) {
+      const c = state.character;
+      Object.entries(effects).forEach(([key, amount]) => {
+        if (c[key] === undefined) return;
+        const meta = statMeta[key] || { min: 0, max: 100 };
+        c[key] = clamp(c[key] + amount, meta.min, meta.max);
+      });
+      if (visible && Object.keys(effects).length) {
+        const text = Object.entries(effects).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${statMeta[k]?.label || k}`).join(' • ');
+        addLog(`📊 Stats changed: ${text}`);
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 560);
+      }
+      renderMeters();
+    }
+
+    function driftStats() {
+      const c = state.character;
+      if (c.money < 0) applyEffects({ stress: 3, health: -1 }, false);
+      if (c.stress > 75) applyEffects({ health: -2, happiness: -2 }, false);
+      if (c.education > 70) applyEffects({ opportunity: 1 }, false);
+      if (c.power > 70) applyEffects({ opportunity: 1 }, false);
+      if (c.money > 85) applyEffects({ opportunity: 1, stress: -1 }, false);
+    }
+
+    function animateDie(value) {
+      const die = $('die');
+      die.classList.remove('rolling');
+      void die.offsetWidth;
+      die.textContent = value;
+      die.classList.add('rolling');
+      beep(value);
+    }
+
+    function addLog(message) {
+      state.log.unshift(message);
+      state.log = state.log.slice(0, 16);
+      renderLog();
+    }
+
+    function renderLog() {
+      $('log').innerHTML = state.log.map(item => `<div>${item}</div>`).join('') || '<div>Life log will appear here. Good luck, tiny sociologist.</div>';
+    }
+
+    function toast(message) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1500);
+    }
+
+    function beep(seed) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 180 + seed * 22;
+        gain.gain.value = 0.035;
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } catch (e) {
+        // Sound is optional; browsers may block it.
+      }
+    }
+
+    function confetti() {
+      const colors = ['#ff4fa3', '#ffb000', '#33a7ff', '#20d489', '#8d5bff'];
+      const box = $('confetti');
+      box.innerHTML = '';
+      for (let i = 0; i < 70; i++) {
+        const piece = document.createElement('i');
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.top = `${-10 - Math.random() * 30}px`;
+        piece.style.background = pick(colors);
+        piece.style.animationDelay = `${Math.random() * 0.35}s`;
+        box.appendChild(piece);
+      }
+      setTimeout(() => box.innerHTML = '', 2200);
+    }
+
+    function endGame() {
+      const c = state.character;
+      const score = Math.round(c.money * 0.35 + c.education * 0.18 + c.health * 0.14 + c.happiness * 0.12 + c.power * 0.12 + c.opportunity * 0.18 - c.stress * 0.16);
+      const ending = pickEnding(c, score);
+      $('endingTitle').textContent = ending.title;
+      $('endingText').textContent = ending.text;
+      $('scoreRow').innerHTML = [
+        ['Dream Score', score], ['Money', Math.round(c.money)], ['Stress', Math.round(c.stress)], ['Power', Math.round(c.power)]
+      ].map(([label, value]) => `<div class="score-box"><b>${value}</b><span>${label}</span></div>`).join('');
+      $('finalLog').innerHTML = state.log.map(item => `<div>${item}</div>`).join('');
+      saveLeaderboard(c.name, ending.title, score);
+      renderLeaderboard();
+      showScreen('endScreen');
+      confetti();
+    }
+
+    function pickEnding(c, score) {
+      if (c.money > 120 && c.power > 65) return { title: 'Millionaire Entrepreneur', text: 'You turned risk into wealth. The game also notes that your cushion, network, or lucky breaks helped make risk survivable.' };
+      if (c.money > 95 && c.education > 72) return { title: 'Corporate Elite', text: 'Credentials plus connections moved you into high-status work. You won hard, but the elevator was not equally located for everyone.' };
+      if (c.power > 82 && c.happiness > 55) return { title: 'Community Leader', text: 'You converted struggle and relationships into collective power. Your legacy is people saying, “Ask them, they know what to do.”' };
+      if (c.power > 75 && c.money > 45) return { title: 'Influencer', text: 'Your platform opened doors, paid bills, and occasionally made your phone a cursed rectangle.' };
+      if (c.stress > 82 && c.health < 48) return { title: 'System Beat You Down', text: 'Bad luck and barriers stacked up. This ending asks what society calls “personal failure” when institutions contributed to the damage.' };
+      if (c.money < 5 && c.education > 55) return { title: 'Debt Survivor', text: 'You gained credentials while carrying financial weight. You are still here, which is not nothing.' };
+      if (c.stress > 75) return { title: 'Burned Out Worker', text: 'You kept going through unstable work, bills, and care responsibilities. Survival took skill, even when the scoreboard undercounted it.' };
+      if (score > 55) return { title: 'Working Class Hero', text: 'You built a steady life through effort, support, and adaptation. Not flashy, definitely real.' };
+      return { title: 'Still Standing', text: 'Your path was messy, mixed, and human. The American Dream did not disappear, but it charged hidden fees.' };
+    }
+
+    function saveLeaderboard(name, ending, score) {
+      const board = JSON.parse(localStorage.getItem('stratifiedBoard') || '[]');
+      board.push({ name, ending, score });
+      board.sort((a, b) => b.score - a.score);
+      localStorage.setItem('stratifiedBoard', JSON.stringify(board.slice(0, 8)));
+    }
+
+    function renderLeaderboard() {
+      const board = JSON.parse(localStorage.getItem('stratifiedBoard') || '[]');
+      $('leaderboard').innerHTML = board.map((item, index) => `<div class="rank"><b>#${index + 1} ${item.name}</b><span>${item.score} • ${item.ending}</span></div>`).join('') || '<p class="hint">No lives completed on this browser yet.</p>';
+    }
+
+    $('randomStartBtn').addEventListener('click', () => startGame('random'));
+    $('customizeBtn').addEventListener('click', () => document.querySelector('.setup-card').scrollIntoView({ behavior: 'smooth' }));
+    $('customStartBtn').addEventListener('click', () => startGame($('backgroundSelect').value));
+    $('restartBtn').addEventListener('click', () => showScreen('startScreen'));
+    $('playAgainBtn').addEventListener('click', () => showScreen('startScreen'));
+  </script>
+</body>
+</html>
